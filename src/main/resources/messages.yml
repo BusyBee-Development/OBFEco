@@ -1,0 +1,57 @@
+prefix: "<gradient:gold:yellow><bold>Obfeco</bold></gradient> <gray>»</gray>"
+
+no-permission: "<red>You do not have permission to use this command."
+player-not-found: "<red>Player {player} not found."
+currency-not-found: "<red>Currency {currency} not found."
+invalid-amount: "<red>Please provide a valid positive number."
+insufficient-funds: "<red>You do not have enough {currency}."
+
+balance:
+  own: "<gray>Your balance: <white>{amount} {currency}"
+  others: "<gray>{player}'s balance: <white>{amount} {currency}"
+
+transaction:
+  receive: "<gray>You received <white>{amount} {currency}<gray>!"
+  lose: "<gray>You lost <white>{amount} {currency}<gray>!"
+  pay-sent: "<gray>You sent <white>{amount} {currency} <gray>to <white>{player}<gray>."
+  pay-received: "<gray>You received <white>{amount} {currency} <gray>from <white>{player}<gray>."
+  give: "<gray>You gave <white>{amount} {currency} <gray>to <white>{player}<gray>."
+  take: "<gray>You took <white>{amount} {currency} <gray>from <white>{player}<gray>."
+  set: "<gray>You set <white>{player}<gray>'s balance to <white>{amount} {currency}<gray>."
+
+top:
+  header: "<gradient:gold:yellow>▬▬▬▬▬▬▬▬▬ <bold>Top {currency}</bold> ▬▬▬▬▬▬▬▬▬</gradient>"
+  entry: "<gold>{position}. <white>{player} <gray>» <yellow>{amount}"
+  footer: "<gradient:gold:yellow>▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬</gradient>"
+
+currency:
+  created: "<gray>Successfully created currency <white>{currency}<gray>."
+  deleted: "<gray>Successfully deleted currency <white>{currency}<gray>."
+  already-exists: "<red>Currency {currency} already exists."
+  cannot-delete-primary: "<red>You cannot delete the primary currency."
+  reset-confirm: "<red><bold>WARNING!</bold> <gray>You are about to wipe all data for <white>{currency}<gray>. Type <white>/obfeco reset {currency} confirm <gray>to proceed."
+  reset-success: "<gray>Successfully wiped all data for <white>{currency}<gray>."
+
+convert:
+  started: "<gray>Migration started... please wait."
+  success: "<green>Successfully migrated <white>{count} <green>accounts!"
+  failed: "<red>Migration failed: {error}"
+
+reload:
+  success: "<green>Configuration and messages reloaded successfully."
+
+gui:
+  currency-manager:
+    title: "Currency Manager"
+    create-button: "<green><bold>Create New Currency"
+    create-lore:
+      - "<gray>Click to create a new"
+      - "<gray>currency for your server."
+    close-button: "<red>Close"
+    currency-lore:
+      - "<gray>ID: <white>{id}"
+      - "<gray>Display: <white>{display}"
+      - "<gray>Starting: <white>{starting}"
+      - ""
+      - "<yellow>Left-Click to edit"
+      - "<red>Right-Click to delete"

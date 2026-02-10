@@ -1,0 +1,247 @@
+package com.busybee.obfeco.database;
+
+import com.busybee.obfeco.Obfeco;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+import lombok.RequiredArgsConstructor;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
+
+@RequiredArgsConstructor
+public class DatabaseManager {
+    private final Obfeco plugin;
+    private HikariDataSource dataSource;
+    
+    public boolean initialize() {
+        String storageType = plugin.getConfigManager().getStorageType();
+
+        if (storageType.equals("YAML")) {
+            plugin.getLogger().info("Using YAML storage - database disabled");
+            return true;
+        }
+
+        try {
+            HikariConfig config = new HikariConfig();
+
+            if (storageType.equals("SQLITE")) {
+                config.setJdbcUrl("jdbc:sqlite:" + plugin.getDataFolder().getAbsolutePath() + "/data.db");
+                config.setDriverClassName("org.sqlite.JDBC");
+            } else if (storageType.equals("MYSQL")) {
+                config.setJdbcUrl("jdbc:mysql://" + plugin.getConfigManager().getDatabaseHost() + ":" +
+                    plugin.getConfigManager().getDatabasePort() + "/" + plugin.getConfigManager().getDatabaseName() +
+                    "?useSSL=false&allowPublicKeyRetrieval=true");
+                config.setUsername(plugin.getConfigManager().getDatabaseUsername());
+                config.setPassword(plugin.getConfigManager().getDatabasePassword());
+                config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+                config.addDataSourceProperty("cachePrepStmts", "true");
+                config.addDataSourceProperty("prepStmtCacheSize", "250");
+                config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            } else {
+                plugin.getLogger().severe("Invalid storage type: " + storageType + ". Use YAML, SQLITE, or MYSQL");
+                return false;
+            }
+
+            config.setMaximumPoolSize(plugin.getConfigManager().getDatabasePoolSize());
+            config.setConnectionTimeout(plugin.getConfigManager().getDatabaseConnectionTimeout());
+            config.setMaxLifetime(plugin.getConfigManager().getDatabaseMaxLifetime());
+
+            this.dataSource = new HikariDataSource(config);
+
+            plugin.getLogger().info("Database connection established (" + storageType + ")");
+            return true;
+        } catch (Exception e) {
+            plugin.getLogger().severe("Failed to initialize database: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    public void shutdown() {
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
+        }
+    }
+    
+    public Connection getConnection() throws SQLException {
+        if (dataSource == null) {
+            throw new SQLException("Database is not initialized (using YAML storage)");
+        }
+        return dataSource.getConnection();
+    }
+
+    public boolean createCurrencyTable(String currencyId) {
+        if (dataSource == null) return true;
+
+        String tableName = "obfeco_" + currencyId.toLowerCase();
+        
+        // Added INDEX on player_uuid for performance
+        String createTable = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
+            "player_uuid VARCHAR(36) PRIMARY KEY, " +
+            "balance DOUBLE NOT NULL DEFAULT 0.0, " +
+            "last_updated BIGINT NOT NULL, " +
+            "INDEX (player_uuid)" +
+            ")";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(createTable)) {
+            stmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to create table for currency " + currencyId + ": " + e.getMessage());
+            return false;
+        }
+    }
+    
+    public boolean deleteCurrencyTable(String currencyId) {
+        if (dataSource == null) return true;
+
+        String tableName = "obfeco_" + currencyId.toLowerCase();
+        String dropTable = "DROP TABLE IF EXISTS " + tableName;
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(dropTable)) {
+            stmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to delete table for currency " + currencyId + ": " + e.getMessage());
+            return false;
+        }
+    }
+    
+    public double getBalance(UUID playerId, String currencyId) {
+        if (dataSource == null) return plugin.getCurrencyManager().getCurrency(currencyId).getStartingBalance();
+
+        String tableName = "obfeco_" + currencyId.toLowerCase();
+        String query = "SELECT balance FROM " + tableName + " WHERE player_uuid = ?";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, playerId.toString());
+            
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getDouble("balance");
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("Failed to get balance for " + playerId + " in currency " + currencyId + ": " + e.getMessage());
+        }
+        
+        return plugin.getCurrencyManager().getCurrency(currencyId).getStartingBalance();
+    }
+    
+    public void setBalance(UUID playerId, String currencyId, double balance) {
+        if (dataSource == null) return;
+
+        String tableName = "obfeco_" + currencyId.toLowerCase();
+        
+        // Optimized UPSERT for MySQL
+        String upsert = "INSERT INTO " + tableName + " (player_uuid, balance, last_updated) VALUES (?, ?, ?) " +
+            "ON DUPLICATE KEY UPDATE balance = ?, last_updated = ?";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(upsert)) {
+            long timestamp = System.currentTimeMillis();
+            stmt.setString(1, playerId.toString());
+            stmt.setDouble(2, balance);
+            stmt.setLong(3, timestamp);
+            stmt.setDouble(4, balance);
+            stmt.setLong(5, timestamp);
+            
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().warning("Failed to set balance for " + playerId + " in currency " + currencyId + ": " + e.getMessage());
+        }
+    }
+
+    public void batchSetBalances(String currencyId, Map<UUID, Double> balances) {
+        if (dataSource == null || balances.isEmpty()) return;
+
+        String tableName = "obfeco_" + currencyId.toLowerCase();
+        String upsert = "INSERT INTO " + tableName + " (player_uuid, balance, last_updated) VALUES (?, ?, ?) " +
+                "ON DUPLICATE KEY UPDATE balance = ?, last_updated = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(upsert)) {
+            conn.setAutoCommit(false);
+            long timestamp = System.currentTimeMillis();
+
+            for (Map.Entry<UUID, Double> entry : balances.entrySet()) {
+                stmt.setString(1, entry.getKey().toString());
+                stmt.setDouble(2, entry.getValue());
+                stmt.setLong(3, timestamp);
+                stmt.setDouble(4, entry.getValue());
+                stmt.setLong(5, timestamp);
+                stmt.addBatch();
+            }
+
+            stmt.executeBatch();
+            conn.commit();
+        } catch (SQLException e) {
+            plugin.getLogger().warning("Failed to batch save balances for currency " + currencyId + ": " + e.getMessage());
+        }
+    }
+    
+    public List<Map.Entry<UUID, Double>> getTopBalances(String currencyId, int limit) {
+        if (dataSource == null) return new ArrayList<>();
+
+        String tableName = "obfeco_" + currencyId.toLowerCase();
+        List<Map.Entry<UUID, Double>> topBalances = new ArrayList<>();
+        
+        String query = "SELECT player_uuid, balance FROM " + tableName + " ORDER BY balance DESC LIMIT ?";
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, limit);
+            
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                UUID playerId = UUID.fromString(rs.getString("player_uuid"));
+                double balance = rs.getDouble("balance");
+                topBalances.add(new AbstractMap.SimpleEntry<>(playerId, balance));
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("Failed to get top balances for currency " + currencyId + ": " + e.getMessage());
+        }
+        
+        return topBalances;
+    }
+    
+    public boolean resetCurrency(String currencyId) {
+        if (dataSource == null) return true;
+
+        String tableName = "obfeco_" + currencyId.toLowerCase();
+        String truncate = "DELETE FROM " + tableName; // TRUNCATE might not be supported on all SQL dialects or might require higher perms
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(truncate)) {
+            stmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Failed to reset currency " + currencyId + ": " + e.getMessage());
+            return false;
+        }
+    }
+    
+    public double getTotalCurrencyValue(String currencyId) {
+        if (dataSource == null) return 0.0;
+
+        String tableName = "obfeco_" + currencyId.toLowerCase();
+        String query = "SELECT SUM(balance) as total FROM " + tableName;
+        
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getDouble("total");
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().warning("Failed to get total value for currency " + currencyId + ": " + e.getMessage());
+        }
+        
+        return 0.0;
+    }
+}

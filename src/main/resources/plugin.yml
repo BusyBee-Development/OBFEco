@@ -1,0 +1,81 @@
+name: Obfeco
+version: ${project.version}
+main: com.busybee.obfeco.Obfeco
+api-version: '1.20'
+author: BusyBee
+description: Modern lightweight multi-currency economy plugin
+website: https://github.com/BusyBee/Obfeco
+softdepend:
+  - Vault
+  - VaultUnlocked
+  - PlaceholderAPI
+
+commands:
+  obfeco:
+    description: Main economy command
+    aliases: [eco, economy]
+    permission: obfeco.use
+
+permissions:
+  obfeco.use:
+    description: Basic command access
+    default: true
+  obfeco.balance:
+    description: Check own balance
+    default: true
+  obfeco.balance.others:
+    description: Check other players balance
+    default: op
+  obfeco.pay:
+    description: Pay other players
+    default: true
+  obfeco.top:
+    description: View leaderboards
+    default: true
+  obfeco.silent:
+    description: Use silent flag on commands
+    default: op
+  obfeco.admin:
+    description: Admin commands
+    default: op
+    children:
+      obfeco.create: true
+      obfeco.delete: true
+      obfeco.give: true
+      obfeco.take: true
+      obfeco.set: true
+      obfeco.reset: true
+      obfeco.convert: true
+      obfeco.reload: true
+      obfeco.manage: true
+      obfeco.silent: true
+  obfeco.create:
+    description: Create currencies
+    default: op
+  obfeco.delete:
+    description: Delete currencies
+    default: op
+  obfeco.give:
+    description: Give currency
+    default: op
+  obfeco.take:
+    description: Take currency
+    default: op
+  obfeco.set:
+    description: Set balance
+    default: op
+  obfeco.reset:
+    description: Reset currency data
+    default: op
+  obfeco.convert:
+    description: Convert from other plugins
+    default: op
+  obfeco.reload:
+    description: Reload configuration
+    default: op
+  obfeco.manage:
+    description: Open currency management GUI
+    default: op
+  obfeco.gui:
+    description: Open currency management GUI
+    default: op

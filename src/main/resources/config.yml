@@ -1,0 +1,64 @@
+storage-type: YAML
+
+database:
+  host: localhost
+  port: 3306
+  database: obfeco
+  username: obf
+  password: test123
+  pool-size: 10
+  connection-timeout: 30000
+  max-lifetime: 1800000
+
+cache:
+  batch-save-interval: 120
+  auto-save-on-quit: true
+  use-caffeine: true
+
+formatting:
+  thousands: k
+  millions: M
+  billions: B
+  trillions: T
+  quadrillions: Q
+  decimal-places: 2
+
+vault:
+  enabled: true
+  primary-currency: dollars
+
+placeholder:
+  enabled: true
+  top-cache-minutes: 5
+
+logging:
+  enabled: true
+  admin-transactions: true
+  user-transactions: true
+
+migration:
+  coinsengine:
+    host: localhost
+    port: 3306
+    database: minecraft
+    username: root
+    password: password
+    table: coinsengine_data
+    source-currency: coins
+
+gui:
+  currency-manager:
+    title: "Currency Manager"
+    create-button: "<green><bold>Create New Currency"
+    create-lore:
+      - "<gray>Click to create a new"
+      - "<gray>currency for your server."
+    close-button: "<red>Close"
+    currency-lore:
+      - "<gray>ID: <white>{id}"
+      - "<gray>Display: <white>{display}"
+      - "<gray>Starting: <white>{starting}"
+      - "<gray>Decimals: <white>{decimals}"
+      - ""
+      - "<yellow>Left-Click to edit"
+      - "<red>Right-Click to delete"
