@@ -12,6 +12,11 @@
       <option name="url" value="https://repo.codemc.io/repository/creatorfromhell/" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="CodeMC" />
+      <option name="name" value="CodeMC" />
+      <option name="url" value="https://repo.codemc.io/repository/maven-public/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="jitpack" />
       <option name="name" value="jitpack" />
       <option name="url" value="https://jitpack.io" />
