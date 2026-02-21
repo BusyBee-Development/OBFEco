@@ -36,20 +36,6 @@ logging:
   admin-transactions: true
   user-transactions: true
 
-migration:
-  coinsengine:
-    type: sqlite
-    table: coinsengine_users
-    file: plugins/CoinsEngine/data.db
-    host: localhost
-    port: 3306
-    database: minecraft
-    username: root
-    password: password
-    mappings:
-      crystals: gems
-      tokens: points
-
 gui:
   currency-manager:
     title: "Currency Manager"

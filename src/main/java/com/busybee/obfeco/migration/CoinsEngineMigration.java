@@ -170,4 +170,35 @@ public class CoinsEngineMigration {
             }
         });
     }
+
+    public CompletableFuture<List<CurrencyScanResult>> scanCurrenciesDetailed() {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!isCoinsEngineAvailable()) {
+                return Collections.emptyList();
+            }
+
+            try {
+                Collection<su.nightexpress.coinsengine.api.currency.Currency> currencies =
+                    su.nightexpress.coinsengine.api.CoinsEngineAPI.getCurrencies();
+
+                List<CurrencyScanResult> results = new ArrayList<>();
+                for (su.nightexpress.coinsengine.api.currency.Currency currency : currencies) {
+                    boolean exists = plugin.getCurrencyManager().getCurrency(currency.getId()) != null;
+                    CurrencyScanResult result = new CurrencyScanResult(
+                        currency.getId(),
+                        currency.getName(),
+                        currency.getSymbol(),
+                        currency.getStartValue(),
+                        currency.isDecimal(),
+                        exists
+                    );
+                    results.add(result);
+                }
+                return results;
+            } catch (Exception e) {
+                plugin.getLogger().severe("Failed to scan currencies: " + e.getMessage());
+                return Collections.emptyList();
+            }
+        });
+    }
 }

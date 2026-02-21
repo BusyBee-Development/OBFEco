@@ -652,24 +652,34 @@ public enum SubCommandType {
                 return;
             }
 
-            sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <yellow>Scanning for " + source + " currencies..."));
+            com.busybee.obfeco.migration.CoinsEngineMigration migration = new com.busybee.obfeco.migration.CoinsEngineMigration(plugin);
 
-            com.busybee.obfeco.migration.MigrationManager migrationManager = new com.busybee.obfeco.migration.MigrationManager(plugin);
-            migrationManager.scanCoinsEngine((success, currencies, error) -> {
-                if (success) {
-                    if (currencies.isEmpty()) {
-                        sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <yellow>No currencies found in database."));
-                        sender.sendMessage(ColorUtil.colorize("<gray>Make sure the database path and table name are correct in config.yml"));
+            if (!migration.isCoinsEngineAvailable()) {
+                sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <red>CoinsEngine plugin not found!"));
+                sender.sendMessage(ColorUtil.colorize("<gray>Make sure CoinsEngine is installed and enabled."));
+                return;
+            }
+
+            sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <yellow>Scanning CoinsEngine currencies..."));
+
+            migration.scanCurrenciesDetailed().thenAccept(results -> {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (results.isEmpty()) {
+                        sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <yellow>No currencies found in CoinsEngine."));
                     } else {
-                        sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <green>Found " + currencies.size() + " currencies:"));
-                        for (String currency : currencies) {
-                            sender.sendMessage(ColorUtil.colorize("  <gray>- <white>" + currency));
+                        sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <green>Found " + results.size() + " CoinsEngine currencies:"));
+                        for (com.busybee.obfeco.migration.CurrencyScanResult result : results) {
+                            String status = result.isAlreadyExists() ? "<gray>[Exists]" : "<green>[New]";
+                            String decimals = result.isUseDecimals() ? "decimals" : "no decimals";
+                            sender.sendMessage(ColorUtil.colorize("  " + status + " <white>" + result.getId() +
+                                " <gray>- <white>" + result.getName() +
+                                " <gray>(" + result.getSymbol() + ", start: " + result.getStartingBalance() + ", " + decimals + ")"));
                         }
-                        sender.sendMessage(ColorUtil.colorize("<gray>Configure mappings in config.yml, then use <white>/obfeco convert coinsengine"));
+                        sender.sendMessage(ColorUtil.colorize("<gray>"));
+                        sender.sendMessage(ColorUtil.colorize("<yellow>Use <white>/obfeco convert coinsengine</white> to migrate player balances."));
+                        sender.sendMessage(ColorUtil.colorize("<gray>New currencies will be automatically created during migration."));
                     }
-                } else {
-                    sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <red>Scan failed: " + error));
-                }
+                });
             });
         },
         (plugin, sender, args) -> {
@@ -695,20 +705,28 @@ public enum SubCommandType {
                 return;
             }
 
-            sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
-                plugin.getMessageManager().getMessage("convert.started")));
+            com.busybee.obfeco.migration.CoinsEngineMigration migration = new com.busybee.obfeco.migration.CoinsEngineMigration(plugin);
 
-            com.busybee.obfeco.migration.MigrationManager migrationManager = new com.busybee.obfeco.migration.MigrationManager(plugin);
-            migrationManager.migrate(source, null, (success, count, error) -> {
+            if (!migration.isCoinsEngineAvailable()) {
+                sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <red>CoinsEngine plugin not found!"));
+                sender.sendMessage(ColorUtil.colorize("<gray>Make sure CoinsEngine is installed and enabled."));
+                return;
+            }
+
+            sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <yellow>Starting CoinsEngine migration..."));
+            sender.sendMessage(ColorUtil.colorize("<gray>This may take a few moments depending on player count."));
+
+            migration.migrate((success, playersProcessed, currenciesMigrated, details) -> {
                 if (success) {
                     sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <green>Migration complete!"));
-                    sender.sendMessage(ColorUtil.colorize("<gray>Total balances migrated: <white>" + count));
-                    if (!error.isEmpty()) {
-                        sender.sendMessage(ColorUtil.colorize("<yellow>" + error));
+                    sender.sendMessage(ColorUtil.colorize("<gray>Players processed: <white>" + playersProcessed));
+                    sender.sendMessage(ColorUtil.colorize("<gray>Currencies migrated: <white>" + currenciesMigrated));
+                    if (!details.isEmpty()) {
+                        sender.sendMessage(ColorUtil.colorize("<gray>Details:" + details));
                     }
                 } else {
-                    sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
-                        plugin.getMessageManager().getMessage("convert.failed").replace("{error}", error)));
+                    sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <red>Migration failed!"));
+                    sender.sendMessage(ColorUtil.colorize("<gray>Error: <white>" + details));
                 }
             });
         },
