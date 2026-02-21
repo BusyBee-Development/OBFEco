@@ -21,6 +21,106 @@ public class MigrationManager {
         void onComplete(boolean success, int count, String error);
     }
 
+    public interface ScanCallback {
+        void onComplete(boolean success, java.util.List<String> currencies, String error);
+    }
+
+    public void scanCoinsEngine(ScanCallback callback) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                String migrationType = plugin.getConfigManager().getMigrationType();
+                String configTable = plugin.getConfigManager().getMigrationTable();
+
+                // Build connection URL
+                final String url;
+                if (migrationType.equals("sqlite")) {
+                    String file = plugin.getConfigManager().getMigrationFile();
+                    java.io.File dbFile = new java.io.File(file);
+                    if (!dbFile.isAbsolute()) {
+                        dbFile = new java.io.File(plugin.getDataFolder().getParentFile().getParentFile(), file);
+                    }
+                    if (!dbFile.exists()) {
+                        String errorMsg = "SQLite database file not found: " + dbFile.getAbsolutePath();
+                        Bukkit.getScheduler().runTask(plugin, () -> callback.onComplete(false, java.util.Collections.emptyList(), errorMsg));
+                        return;
+                    }
+                    url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
+                } else {
+                    String host = plugin.getConfig().getString("migration.coinsengine.host", "localhost");
+                    int port = plugin.getConfig().getInt("migration.coinsengine.port", 3306);
+                    String database = plugin.getConfig().getString("migration.coinsengine.database", "minecraft");
+                    url = "jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false&allowPublicKeyRetrieval=true";
+                }
+
+                // Connect to database
+                Connection conn;
+                if (migrationType.equals("sqlite")) {
+                    conn = DriverManager.getConnection(url);
+                } else {
+                    String user = plugin.getConfig().getString("migration.coinsengine.username", "root");
+                    String pass = plugin.getConfig().getString("migration.coinsengine.password", "password");
+                    conn = DriverManager.getConnection(url, user, pass);
+                }
+
+                java.util.List<String> currencies = new java.util.ArrayList<>();
+
+                try (conn) {
+                    // Auto-detect table if configured table doesn't exist
+                    String actualTable = configTable;
+                    try (ResultSet tables = conn.getMetaData().getTables(null, null, "%", new String[]{"TABLE"})) {
+                        boolean foundConfigTable = false;
+                        while (tables.next()) {
+                            String tableName = tables.getString("TABLE_NAME");
+                            if (tableName.equalsIgnoreCase(configTable)) {
+                                foundConfigTable = true;
+                            }
+                            if (!foundConfigTable && (tableName.toLowerCase().contains("coin") || tableName.toLowerCase().contains("user"))) {
+                                actualTable = tableName;
+                            }
+                        }
+                    }
+
+                    // Detect table structure
+                    java.util.Set<String> systemColumns = new java.util.HashSet<>(
+                        java.util.Arrays.asList("id", "uuid", "player_uuid", "name", "datecreated",
+                            "last_online", "lastonline", "settings", "hiddenfromtops", "currencydata")
+                    );
+
+                    try (PreparedStatement checkStmt = conn.prepareStatement("SELECT * FROM " + actualTable + " LIMIT 1");
+                         ResultSet checkRs = checkStmt.executeQuery()) {
+                        ResultSetMetaData meta = checkRs.getMetaData();
+                        int colCount = meta.getColumnCount();
+
+                        for (int i = 1; i <= colCount; i++) {
+                            String colName = meta.getColumnName(i);
+                            String colType = meta.getColumnTypeName(i);
+                            String colNameLower = colName.toLowerCase();
+
+                            // Detect balance columns
+                            if (colNameLower.startsWith("balance_")) {
+                                String currencyName = colNameLower.substring(8);
+                                currencies.add(currencyName);
+                            } else if (!systemColumns.contains(colNameLower) &&
+                                     (colType.equalsIgnoreCase("REAL") ||
+                                      colType.equalsIgnoreCase("DOUBLE") ||
+                                      colType.equalsIgnoreCase("FLOAT") ||
+                                      colType.equalsIgnoreCase("DECIMAL"))) {
+                                currencies.add(colNameLower);
+                            }
+                        }
+                    }
+                }
+
+                java.util.List<String> finalCurrencies = currencies;
+                Bukkit.getScheduler().runTask(plugin, () -> callback.onComplete(true, finalCurrencies, ""));
+
+            } catch (Exception e) {
+                String errorMsg = "Scan failed: " + e.getMessage();
+                Bukkit.getScheduler().runTask(plugin, () -> callback.onComplete(false, java.util.Collections.emptyList(), errorMsg));
+            }
+        });
+    }
+
     public void migrate(String source, String targetCurrency, MigrationCallback callback) {
         if (source.equalsIgnoreCase("coinsengine")) {
             migrateCoinsEngine(targetCurrency, callback);
