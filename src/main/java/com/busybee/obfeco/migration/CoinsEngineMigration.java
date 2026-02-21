@@ -5,7 +5,14 @@ import com.busybee.obfeco.core.Currency;
 import lombok.RequiredArgsConstructor;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -21,6 +28,72 @@ public class CoinsEngineMigration {
         return Bukkit.getPluginManager().getPlugin("CoinsEngine") != null;
     }
 
+    private void listDatabaseTables(Connection connection) {
+        try {
+            String query = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name";
+            try (PreparedStatement stmt = connection.prepareStatement(query);
+                 ResultSet rs = stmt.executeQuery()) {
+                plugin.getLogger().info("Available tables in CoinsEngine database:");
+                while (rs.next()) {
+                    plugin.getLogger().info("  - " + rs.getString("name"));
+                }
+            }
+        } catch (Exception e) {
+            // Might be MySQL, try MySQL approach
+            try {
+                String query = "SHOW TABLES";
+                try (PreparedStatement stmt = connection.prepareStatement(query);
+                     ResultSet rs = stmt.executeQuery()) {
+                    plugin.getLogger().info("Available tables in CoinsEngine database:");
+                    while (rs.next()) {
+                        plugin.getLogger().info("  - " + rs.getString(1));
+                    }
+                }
+            } catch (Exception ex) {
+                plugin.getLogger().warning("Could not list database tables: " + ex.getMessage());
+            }
+        }
+    }
+
+    private Connection getCoinsEngineConnection() throws Exception {
+        File coinsEngineFolder = new File(plugin.getDataFolder().getParentFile(), "CoinsEngine");
+        if (!coinsEngineFolder.exists()) {
+            throw new Exception("CoinsEngine folder not found");
+        }
+
+        File configFile = new File(coinsEngineFolder, "config.yml");
+        if (!configFile.exists()) {
+            throw new Exception("CoinsEngine config.yml not found");
+        }
+
+        FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
+
+        // Check for database configuration
+        String storageType = config.getString("Database.Type", "SQLITE");
+
+        if (storageType.equalsIgnoreCase("MYSQL")) {
+            String host = config.getString("Database.MySQL.Host", "localhost");
+            int port = config.getInt("Database.MySQL.Port", 3306);
+            String database = config.getString("Database.MySQL.Database", "minecraft");
+            String username = config.getString("Database.MySQL.Username", "root");
+            String password = config.getString("Database.MySQL.Password", "");
+
+            String url = "jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false&allowPublicKeyRetrieval=true";
+            plugin.getLogger().info("Connecting to CoinsEngine MySQL database...");
+            return DriverManager.getConnection(url, username, password);
+        } else {
+            // Default to SQLite
+            File dbFile = new File(coinsEngineFolder, "data.db");
+            if (!dbFile.exists()) {
+                throw new Exception("CoinsEngine database file not found: " + dbFile.getAbsolutePath());
+            }
+
+            String url = "jdbc:sqlite:" + dbFile.getAbsolutePath();
+            plugin.getLogger().info("Connecting to CoinsEngine SQLite database: " + dbFile.getAbsolutePath());
+            return DriverManager.getConnection(url);
+        }
+    }
+
     public void migrate(MigrationCallback callback) {
         if (!isCoinsEngineAvailable()) {
             callback.onComplete(false, 0, 0, "CoinsEngine plugin not found");
@@ -30,7 +103,9 @@ public class CoinsEngineMigration {
         plugin.getLogger().info("=== CoinsEngine Migration Started ===");
 
         CompletableFuture.runAsync(() -> {
+            Connection connection = null;
             try {
+                // Get CoinsEngine currencies via API for metadata
                 Collection<su.nightexpress.coinsengine.api.currency.Currency> ceCurrencies =
                     su.nightexpress.coinsengine.api.CoinsEngineAPI.getCurrencies();
 
@@ -43,6 +118,7 @@ public class CoinsEngineMigration {
 
                 plugin.getLogger().info("Found " + ceCurrencies.size() + " currencies in CoinsEngine");
 
+                // Create/verify Obfeco currencies
                 Map<String, Currency> obfecoCurrencies = new HashMap<>();
                 for (su.nightexpress.coinsengine.api.currency.Currency ceCurrency : ceCurrencies) {
                     String currencyId = ceCurrency.getId();
@@ -74,47 +150,73 @@ public class CoinsEngineMigration {
                     }
                 }
 
-                Thread.sleep(100);
+                Thread.sleep(200);
 
-                OfflinePlayer[] allPlayers = Bukkit.getOfflinePlayers();
-                plugin.getLogger().info("Scanning " + allPlayers.length + " players...");
+                // Connect to CoinsEngine database
+                connection = getCoinsEngineConnection();
+                plugin.getLogger().info("Connected to CoinsEngine database");
 
-                int playersProcessed = 0;
+                // List available tables for debugging
+                listDatabaseTables(connection);
+
+                // Read all balances directly from database
                 Map<String, Map<UUID, Double>> allBalances = new HashMap<>();
-
                 for (su.nightexpress.coinsengine.api.currency.Currency ceCurrency : ceCurrencies) {
                     allBalances.put(ceCurrency.getId(), new HashMap<>());
                 }
 
-                for (OfflinePlayer player : allPlayers) {
-                    UUID playerId = player.getUniqueId();
-                    boolean hasNonDefaultBalance = false;
+                Set<UUID> allPlayerIds = new HashSet<>();
 
-                    for (su.nightexpress.coinsengine.api.currency.Currency ceCurrency : ceCurrencies) {
-                        try {
-                            double balance = su.nightexpress.coinsengine.api.CoinsEngineAPI.getBalance(playerId, ceCurrency);
-                            double defaultBalance = ceCurrency.getStartValue();
+                // Try different possible table names for CoinsEngine
+                String[] possibleQueries = {
+                    "SELECT player_id, currency_id, balance FROM coinsengine_user_balance WHERE balance > 0",
+                    "SELECT player_id, currency_id, balance FROM coinsengine_balances WHERE balance > 0",
+                    "SELECT uuid, currency, balance FROM coinsengine_data WHERE balance > 0",
+                    "SELECT player, currency, amount FROM user_balance WHERE amount > 0"
+                };
 
-                            if (balance != defaultBalance && balance > 0) {
-                                allBalances.get(ceCurrency.getId()).put(playerId, balance);
-                                hasNonDefaultBalance = true;
+                boolean querySuccess = false;
+                for (String query : possibleQueries) {
+                    try (PreparedStatement stmt = connection.prepareStatement(query);
+                         ResultSet rs = stmt.executeQuery()) {
+
+                        plugin.getLogger().info("Successfully queried CoinsEngine database using: " + query);
+
+                        while (rs.next()) {
+                            try {
+                                String playerIdStr = rs.getString(1);  // First column (UUID)
+                                String currencyId = rs.getString(2);   // Second column (currency)
+                                double balance = rs.getDouble(3);      // Third column (balance)
+
+                                UUID playerId = UUID.fromString(playerIdStr);
+                                allPlayerIds.add(playerId);
+
+                                if (allBalances.containsKey(currencyId)) {
+                                    allBalances.get(currencyId).put(playerId, balance);
+                                }
+                            } catch (Exception e) {
+                                plugin.getLogger().warning("Failed to parse balance record: " + e.getMessage());
                             }
-                        } catch (Exception e) {
-                            plugin.getLogger().warning("Failed to get balance for " + playerId + " in " + ceCurrency.getId() + ": " + e.getMessage());
                         }
-                    }
 
-                    if (hasNonDefaultBalance) {
-                        playersProcessed++;
+                        plugin.getLogger().info("Loaded balances for " + allPlayerIds.size() + " players from database");
+                        querySuccess = true;
+                        break;
 
-                        if (playersProcessed % 100 == 0) {
-                            plugin.getLogger().info("Processed " + playersProcessed + " players...");
-                        }
+                    } catch (Exception e) {
+                        // Try next query
+                        plugin.getLogger().fine("Query failed: " + query + " - " + e.getMessage());
                     }
+                }
+
+                if (!querySuccess) {
+                    plugin.getLogger().warning("Could not find CoinsEngine balance table. Tried multiple table structures.");
+                    plugin.getLogger().warning("Please check your CoinsEngine database structure.");
                 }
 
                 plugin.getLogger().info("Saving balances to database...");
                 int currenciesMigrated = 0;
+                int playersProcessed = allPlayerIds.size();
                 StringBuilder details = new StringBuilder();
 
                 for (Map.Entry<String, Map<UUID, Double>> entry : allBalances.entrySet()) {
@@ -145,6 +247,15 @@ public class CoinsEngineMigration {
                 e.printStackTrace();
                 Bukkit.getScheduler().runTask(plugin, () ->
                     callback.onComplete(false, 0, 0, "Error: " + e.getMessage()));
+            } finally {
+                if (connection != null) {
+                    try {
+                        connection.close();
+                        plugin.getLogger().info("Closed CoinsEngine database connection");
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("Failed to close database connection: " + e.getMessage());
+                    }
+                }
             }
         });
     }

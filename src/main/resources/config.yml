@@ -1,4 +1,4 @@
-storage-type: YAML
+storage-type: SQLITE
 
 database:
   host: localhost
