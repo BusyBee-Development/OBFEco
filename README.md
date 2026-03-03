@@ -6,7 +6,7 @@
 
 *   **Unlimited Currencies:** Create as many currencies as you need (Gems, Coins, Souls, etc.).
 *   **Intuitive GUI:** Manage all your currencies and view leaderboards through an easy-to-use interface.
-*   **Robust Storage:** Choose between **YAML**, **SQLite**, or **MySQL** for high-performance data handling.
+*   **Robust Storage:** Choose between **SQLite**, or **MySQL** for high-performance data handling.
 *   **PlaceholderAPI Support:** Display balances, total economy values, and leaderboards anywhere.
 *   **Vault Integration:** Fully compatible with plugins that use Vault (requires a primary currency to be set).
 *   **Admin Tools:** Comprehensive tools for giving, taking, setting, and resetting balances.
