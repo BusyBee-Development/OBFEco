@@ -58,12 +58,15 @@ Obfeco provides a wide range of placeholders for PlaceholderAPI. Replace `<curre
 | :--- | :--- |
 | `%obfeco_<currency>%` | Raw balance of the player |
 | `%obfeco_<currency>_formatted%` | Formatted balance (e.g., 1.5k) |
-| `%obfeco_<currency>_total%` | Total amount of this currency (Formatted) |
-| `%obfeco_<currency>_total_formatted%` | Total amount of this currency (Formatted) |
-| `%obfeco_<currency>_total_raw%` | Total amount of this currency (Raw) |
+| `%obfeco_<currency>_raw%` | Raw balance of the player (Alias) |
+| `%obfeco_<currency>_total%` | Total economy value (Raw) |
+| `%obfeco_<currency>_total_formatted%` | Total economy value (Formatted) |
+| `%obfeco_<currency>_total_raw%` | Total economy value (Raw) (Alias) |
 | `%obfeco_<currency>_top_name_<pos>%` | Name of the player at leaderboard position |
-| `%obfeco_<currency>_top_value_<pos>%` | Balance of the player (Formatted) at position |
-| `%obfeco_<currency>_top_rawvalue_<pos>%` | Balance of the player (Raw) at position |
+| `%obfeco_<currency>_top_formatted_<pos>%` | Balance of the player (Formatted) at position |
+| `%obfeco_<currency>_top_raw_<pos>%` | Balance of the player (Raw) at position |
+| `%obfeco_<currency>_top_value_<pos>%` | Alias for `_top_formatted_` |
+| `%obfeco_<currency>_top_rawvalue_<pos>%` | Alias for `_top_raw_` |
 
 ## 📦 Storage Options
 

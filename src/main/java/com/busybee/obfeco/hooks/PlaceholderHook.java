@@ -44,22 +44,41 @@ public class PlaceholderHook extends PlaceholderExpansion {
         String[] parts = params.split("_");
         if (parts.length == 0) return null;
 
-        String currencyId = parts[0];
-        Currency currency = plugin.getCurrencyManager().getCurrency(currencyId);
+        // Try to find the longest matching currency ID from the params
+        String currencyId = null;
+        Currency currency = null;
 
-        if (currency == null) {
-            for (int i = 1; i < parts.length; i++) {
-                currencyId = currencyId + "_" + parts[i];
-                currency = plugin.getCurrencyManager().getCurrency(currencyId);
-                if (currency != null) break;
+        for (int i = parts.length; i > 0; i--) {
+            StringBuilder sb = new StringBuilder();
+            for (int j = 0; j < i; j++) {
+                if (j > 0) sb.append("_");
+                sb.append(parts[j]);
             }
-            if (currency == null) return null;
+            String testId = sb.toString();
+            Currency testCurrency = plugin.getCurrencyManager().getCurrency(testId);
+            if (testCurrency != null) {
+                currencyId = testId;
+                currency = testCurrency;
+                break;
+            }
         }
+
+        if (currency == null) return null;
 
         String remaining = params.substring(currencyId.length());
         if (remaining.startsWith("_")) remaining = remaining.substring(1);
 
-        if (remaining.isEmpty()) {
+        if (remaining.equalsIgnoreCase("formatted")) {
+            if (player == null) return "0";
+            try {
+                double balance = plugin.getCurrencyManager().getBalance(player.getUniqueId(), currencyId).get();
+                return plugin.getConfigManager().formatAmount(balance, currency);
+            } catch (Exception e) {
+                return "0";
+            }
+        }
+
+        if (remaining.isEmpty() || remaining.equalsIgnoreCase("raw")) {
             if (player == null) return "0";
             try {
                 double balance = plugin.getCurrencyManager().getBalance(player.getUniqueId(), currencyId).get();
@@ -72,22 +91,12 @@ public class PlaceholderHook extends PlaceholderExpansion {
             }
         }
 
-        if (remaining.equalsIgnoreCase("formatted")) {
-            if (player == null) return "0";
-            try {
-                double balance = plugin.getCurrencyManager().getBalance(player.getUniqueId(), currencyId).get();
-                return plugin.getConfigManager().formatAmount(balance, currency);
-            } catch (Exception e) {
-                return "0";
-            }
-        }
-
-        if (remaining.equalsIgnoreCase("total") || remaining.equalsIgnoreCase("total_formatted")) {
+        if (remaining.equalsIgnoreCase("total_formatted")) {
             double total = plugin.getDatabaseManager().getTotalCurrencyValue(currencyId);
             return plugin.getConfigManager().formatAmount(total, currency);
         }
 
-        if (remaining.equalsIgnoreCase("total_raw")) {
+        if (remaining.equalsIgnoreCase("total") || remaining.equalsIgnoreCase("total_raw")) {
             double total = plugin.getDatabaseManager().getTotalCurrencyValue(currencyId);
             if (!currency.isUseDecimals()) {
                 return String.valueOf((long) Math.floor(total));
@@ -117,9 +126,9 @@ public class PlaceholderHook extends PlaceholderExpansion {
                 if (type.equalsIgnoreCase("name")) {
                     OfflinePlayer topPlayer = Bukkit.getOfflinePlayer(entry.getKey());
                     return topPlayer.getName() != null ? topPlayer.getName() : "Unknown";
-                } else if (type.equalsIgnoreCase("value")) {
+                } else if (type.equalsIgnoreCase("value") || type.equalsIgnoreCase("formatted")) {
                     return plugin.getConfigManager().formatAmount(entry.getValue(), currency);
-                } else if (type.equalsIgnoreCase("rawvalue")) {
+                } else if (type.equalsIgnoreCase("rawvalue") || type.equalsIgnoreCase("raw")) {
                     if (!currency.isUseDecimals()) {
                         return String.valueOf((long) Math.floor(entry.getValue()));
                     }
