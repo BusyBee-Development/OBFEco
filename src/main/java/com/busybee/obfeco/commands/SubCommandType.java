@@ -248,7 +248,7 @@ public enum SubCommandType {
 
             int finalPage = Math.max(1, page);
 
-            if (sender instanceof Player) {
+            if (sender instanceof Player && sender.hasPermission("obfeco.top.gui")) {
                 Player player = (Player) sender;
                 TopBalancesGUI gui = new TopBalancesGUI(plugin, currency, finalPage);
                 gui.decorate(player);

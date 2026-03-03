@@ -31,7 +31,7 @@ The main command is `/obfeco`, with aliases `/eco` and `/economy`.
 | `/obfeco balance [currency]` | Check your own balance | `obfeco.balance` |
 | `/obfeco balance <player> <currency>` | Check another player's balance | `obfeco.balance.others` |
 | `/obfeco pay <player> <currency> <amount>` | Pay another player | `obfeco.pay` |
-| `/obfeco top <currency> [page]` | View the leaderboard (GUI/Chat) | `obfeco.top` |
+| `/obfeco top <currency> [page]` | View the leaderboard (GUI/Chat) | `obfeco.top` / `obfeco.top.gui` |
 
 ### Admin Commands
 

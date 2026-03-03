@@ -32,6 +32,9 @@ permissions:
   obfeco.top:
     description: View leaderboards
     default: true
+  obfeco.top.gui:
+    description: View leaderboards via GUI
+    default: op
   obfeco.silent:
     description: Use silent flag on commands
     default: op

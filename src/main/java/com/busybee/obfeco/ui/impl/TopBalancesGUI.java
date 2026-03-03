@@ -6,8 +6,6 @@ import com.busybee.obfeco.ui.InventoryButton;
 import com.busybee.obfeco.ui.InventoryGUI;
 import com.busybee.obfeco.util.ColorUtil;
 import com.cryptomorin.xseries.XMaterial;
-import com.cryptomorin.xseries.profiles.builder.XSkull;
-import com.cryptomorin.xseries.profiles.objects.Profileable;
 import lombok.RequiredArgsConstructor;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
@@ -173,25 +171,25 @@ public class TopBalancesGUI extends InventoryGUI {
     }
 
     private ItemStack createPlayerHead(UUID uuid, String playerName, int rank, String balance) {
-        ItemStack head;
-        try {
-            head = XSkull.createItem().profile(Profileable.detect(playerName)).apply();
-        } catch (Exception e) {
-            head = XMaterial.matchXMaterial("PLAYER_HEAD").map(XMaterial::parseItem).orElse(XMaterial.STONE.parseItem());
+        ItemStack head = XMaterial.PLAYER_HEAD.parseItem();
+        if (head == null) {
+            head = new ItemStack(org.bukkit.Material.STONE);
         }
 
         ItemMeta meta = head.getItemMeta();
-        meta.setDisplayName(ColorUtil.colorizeToLegacy("<gold>#" + rank + " <white>" + playerName));
+        if (meta != null) {
+            meta.setDisplayName(ColorUtil.colorizeToLegacy("<gold>#" + rank + " <white>" + playerName));
 
-        List<String> lore = new ArrayList<>();
-        lore.add(ColorUtil.colorizeToLegacy("<gray>Balance: <yellow>" + balance));
-        lore.add(ColorUtil.colorizeToLegacy("<gray>UUID: <white>" + uuid));
-        lore.add("");
-        lore.add(ColorUtil.colorizeToLegacy("<yellow>Left-Click <gray>to copy IGN"));
-        lore.add(ColorUtil.colorizeToLegacy("<yellow>Right-Click <gray>to copy UUID"));
-        meta.setLore(lore);
+            List<String> lore = new ArrayList<>();
+            lore.add(ColorUtil.colorizeToLegacy("<gray>Balance: <yellow>" + balance));
+            lore.add(ColorUtil.colorizeToLegacy("<gray>UUID: <white>" + uuid));
+            lore.add("");
+            lore.add(ColorUtil.colorizeToLegacy("<yellow>Left-Click <gray>to copy IGN"));
+            lore.add(ColorUtil.colorizeToLegacy("<yellow>Right-Click <gray>to copy UUID"));
+            meta.setLore(lore);
 
-        head.setItemMeta(meta);
+            head.setItemMeta(meta);
+        }
         return head;
     }
 
