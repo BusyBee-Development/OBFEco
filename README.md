@@ -58,9 +58,12 @@ Obfeco provides a wide range of placeholders for PlaceholderAPI. Replace `<curre
 | :--- | :--- |
 | `%obfeco_<currency>%` | Raw balance of the player |
 | `%obfeco_<currency>_formatted%` | Formatted balance (e.g., 1.5k) |
-| `%obfeco_<currency>_total%` | Total amount of this currency in the economy |
+| `%obfeco_<currency>_total%` | Total amount of this currency (Formatted) |
+| `%obfeco_<currency>_total_formatted%` | Total amount of this currency (Formatted) |
+| `%obfeco_<currency>_total_raw%` | Total amount of this currency (Raw) |
 | `%obfeco_<currency>_top_name_<pos>%` | Name of the player at leaderboard position |
-| `%obfeco_<currency>_top_value_<pos>%` | Balance of the player at leaderboard position |
+| `%obfeco_<currency>_top_value_<pos>%` | Balance of the player (Formatted) at position |
+| `%obfeco_<currency>_top_rawvalue_<pos>%` | Balance of the player (Raw) at position |
 
 ## 📦 Storage Options
 

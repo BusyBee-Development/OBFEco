@@ -82,9 +82,17 @@ public class PlaceholderHook extends PlaceholderExpansion {
             }
         }
 
-        if (remaining.equalsIgnoreCase("total")) {
+        if (remaining.equalsIgnoreCase("total") || remaining.equalsIgnoreCase("total_formatted")) {
             double total = plugin.getDatabaseManager().getTotalCurrencyValue(currencyId);
             return plugin.getConfigManager().formatAmount(total, currency);
+        }
+
+        if (remaining.equalsIgnoreCase("total_raw")) {
+            double total = plugin.getDatabaseManager().getTotalCurrencyValue(currencyId);
+            if (!currency.isUseDecimals()) {
+                return String.valueOf((long) Math.floor(total));
+            }
+            return String.format("%." + plugin.getConfigManager().getDecimalPlaces() + "f", total);
         }
 
         if (remaining.toLowerCase().startsWith("top_")) {
@@ -111,6 +119,11 @@ public class PlaceholderHook extends PlaceholderExpansion {
                     return topPlayer.getName() != null ? topPlayer.getName() : "Unknown";
                 } else if (type.equalsIgnoreCase("value")) {
                     return plugin.getConfigManager().formatAmount(entry.getValue(), currency);
+                } else if (type.equalsIgnoreCase("rawvalue")) {
+                    if (!currency.isUseDecimals()) {
+                        return String.valueOf((long) Math.floor(entry.getValue()));
+                    }
+                    return String.format("%." + plugin.getConfigManager().getDecimalPlaces() + "f", entry.getValue());
                 }
             }
             return null;

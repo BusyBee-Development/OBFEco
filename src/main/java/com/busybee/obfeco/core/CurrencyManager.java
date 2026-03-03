@@ -97,7 +97,11 @@ public class CurrencyManager {
     }
 
     public void saveCurrency(Currency currency) {
-        File file = new File(plugin.getDataFolder(), "currencies/" + currency.getId() + ".yml");
+        File folder = new File(plugin.getDataFolder(), "currencies");
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+        File file = new File(folder, currency.getId() + ".yml");
         YamlConfiguration config = new YamlConfiguration();
         config.set("display-name", currency.getDisplayName());
         config.set("symbol", currency.getSymbol());
@@ -117,7 +121,7 @@ public class CurrencyManager {
     public void addCurrency(Currency currency) {
         currencies.put(currency.getId(), currency);
         dirtyPlayersByCurrency.put(currency.getId(), ConcurrentHashMap.newKeySet());
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveCurrency(currency));
+        saveCurrency(currency);
     }
     
     public void removeCurrency(String currencyId) {
