@@ -157,6 +157,12 @@ public class CurrencyManager {
         if (playerBalances != null && playerBalances.containsKey(canonicalId)) {
             return CompletableFuture.completedFuture(playerBalances.get(canonicalId));
         }
+
+        if (Bukkit.isPrimaryThread()) {
+            double balance = plugin.getDatabaseManager().getBalance(playerId, canonicalId);
+            balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, balance);
+            return CompletableFuture.completedFuture(balance);
+        }
         
         return CompletableFuture.supplyAsync(() -> {
             double balance = plugin.getDatabaseManager().getBalance(playerId, canonicalId);
@@ -186,22 +192,40 @@ public class CurrencyManager {
         Currency currency = getCurrency(currencyId);
         String canonicalId = currency != null ? currency.getId() : currencyId;
         
-        return CompletableFuture.supplyAsync(() -> {
-            double oldBalance = balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).getOrDefault(canonicalId, 0.0);
-            balanceCache.get(playerId).put(canonicalId, amount);
-            markDirty(playerId, canonicalId);
-            
+        return getBalance(playerId, canonicalId).thenCompose(oldBalance -> {
             Player player = Bukkit.getPlayer(playerId);
-            if (player != null) {
-                CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, oldBalance, amount, CurrencyChangeEvent.ChangeType.SET);
-                Bukkit.getPluginManager().callEvent(event);
+            if (player == null || Bukkit.isPrimaryThread()) {
+                balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, amount);
+                markDirty(playerId, canonicalId);
                 
-                if (event.isCancelled()) {
-                    balanceCache.get(playerId).put(canonicalId, oldBalance);
-                    return false;
+                if (player != null) {
+                    CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, oldBalance, amount, CurrencyChangeEvent.ChangeType.SET);
+                    Bukkit.getPluginManager().callEvent(event);
+                    
+                    if (event.isCancelled()) {
+                        balanceCache.get(playerId).put(canonicalId, oldBalance);
+                        return CompletableFuture.completedFuture(false);
+                    }
                 }
+                return CompletableFuture.completedFuture(true);
+            } else {
+                CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, amount);
+                    markDirty(playerId, canonicalId);
+                    
+                    CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, oldBalance, amount, CurrencyChangeEvent.ChangeType.SET);
+                    Bukkit.getPluginManager().callEvent(event);
+                    
+                    if (event.isCancelled()) {
+                        balanceCache.get(playerId).put(canonicalId, oldBalance);
+                        resultFuture.complete(false);
+                    } else {
+                        resultFuture.complete(true);
+                    }
+                });
+                return resultFuture;
             }
-            return true;
         });
     }
     
@@ -211,30 +235,57 @@ public class CurrencyManager {
         Currency currency = getCurrency(currencyId);
         String canonicalId = currency != null ? currency.getId() : currencyId;
         
-        return getBalance(playerId, canonicalId).thenApply(currentBalance -> {
-            double newBalance = currentBalance + amount;
-            balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, newBalance);
-            markDirty(playerId, canonicalId);
-            
+        return getBalance(playerId, canonicalId).thenCompose(currentBalance -> {
             Player player = Bukkit.getPlayer(playerId);
-            if (player != null) {
-                CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, currentBalance, newBalance, CurrencyChangeEvent.ChangeType.ADD);
-                Bukkit.getPluginManager().callEvent(event);
+            if (player == null || Bukkit.isPrimaryThread()) {
+                double newBalance = currentBalance + amount;
+                balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, newBalance);
+                markDirty(playerId, canonicalId);
                 
-                if (event.isCancelled()) {
-                    balanceCache.get(playerId).put(canonicalId, currentBalance);
-                    return false;
+                if (player != null) {
+                    CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, currentBalance, newBalance, CurrencyChangeEvent.ChangeType.ADD);
+                    Bukkit.getPluginManager().callEvent(event);
+                    
+                    if (event.isCancelled()) {
+                        balanceCache.get(playerId).put(canonicalId, currentBalance);
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    
+                    if (!silent && currency != null && currency.isNotifyGive()) {
+                        player.sendMessage(ColorUtil.colorize(
+                            plugin.getMessageManager().getMessage("transaction.receive")
+                                .replace("{amount}", plugin.getConfigManager().formatAmount(amount, currency))
+                                .replace("{currency}", currency.getDisplayName())
+                        ));
+                    }
                 }
-                
-                if (!silent && currency != null && currency.isNotifyGive()) {
-                    player.sendMessage(ColorUtil.colorize(
-                        plugin.getMessageManager().getMessage("transaction.receive")
-                            .replace("{amount}", plugin.getConfigManager().formatAmount(amount, currency))
-                            .replace("{currency}", currency.getDisplayName())
-                    ));
-                }
+                return CompletableFuture.completedFuture(true);
+            } else {
+                CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    double newBalance = currentBalance + amount;
+                    balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, newBalance);
+                    markDirty(playerId, canonicalId);
+                    
+                    CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, currentBalance, newBalance, CurrencyChangeEvent.ChangeType.ADD);
+                    Bukkit.getPluginManager().callEvent(event);
+                    
+                    if (event.isCancelled()) {
+                        balanceCache.get(playerId).put(canonicalId, currentBalance);
+                        resultFuture.complete(false);
+                    } else {
+                        if (!silent && currency != null && currency.isNotifyGive()) {
+                            player.sendMessage(ColorUtil.colorize(
+                                plugin.getMessageManager().getMessage("transaction.receive")
+                                    .replace("{amount}", plugin.getConfigManager().formatAmount(amount, currency))
+                                    .replace("{currency}", currency.getDisplayName())
+                            ));
+                        }
+                        resultFuture.complete(true);
+                    }
+                });
+                return resultFuture;
             }
-            return true;
         });
     }
     
@@ -244,32 +295,59 @@ public class CurrencyManager {
         Currency currency = getCurrency(currencyId);
         String canonicalId = currency != null ? currency.getId() : currencyId;
         
-        return getBalance(playerId, canonicalId).thenApply(currentBalance -> {
-            if (currentBalance < amount) return false;
-            
-            double newBalance = currentBalance - amount;
-            balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, newBalance);
-            markDirty(playerId, canonicalId);
+        return getBalance(playerId, canonicalId).thenCompose(currentBalance -> {
+            if (currentBalance < amount) return CompletableFuture.completedFuture(false);
             
             Player player = Bukkit.getPlayer(playerId);
-            if (player != null) {
-                CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, currentBalance, newBalance, CurrencyChangeEvent.ChangeType.REMOVE);
-                Bukkit.getPluginManager().callEvent(event);
+            if (player == null || Bukkit.isPrimaryThread()) {
+                double newBalance = currentBalance - amount;
+                balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, newBalance);
+                markDirty(playerId, canonicalId);
                 
-                if (event.isCancelled()) {
-                    balanceCache.get(playerId).put(canonicalId, currentBalance);
-                    return false;
+                if (player != null) {
+                    CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, currentBalance, newBalance, CurrencyChangeEvent.ChangeType.REMOVE);
+                    Bukkit.getPluginManager().callEvent(event);
+                    
+                    if (event.isCancelled()) {
+                        balanceCache.get(playerId).put(canonicalId, currentBalance);
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    
+                    if (!silent && currency != null && currency.isNotifyTake()) {
+                        player.sendMessage(ColorUtil.colorize(
+                            plugin.getMessageManager().getMessage("transaction.lose")
+                                .replace("{amount}", plugin.getConfigManager().formatAmount(amount, currency))
+                                .replace("{currency}", currency.getDisplayName())
+                        ));
+                    }
                 }
-                
-                if (!silent && currency != null && currency.isNotifyTake()) {
-                    player.sendMessage(ColorUtil.colorize(
-                        plugin.getMessageManager().getMessage("transaction.lose")
-                            .replace("{amount}", plugin.getConfigManager().formatAmount(amount, currency))
-                            .replace("{currency}", currency.getDisplayName())
-                    ));
-                }
+                return CompletableFuture.completedFuture(true);
+            } else {
+                CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    double newBalance = currentBalance - amount;
+                    balanceCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>()).put(canonicalId, newBalance);
+                    markDirty(playerId, canonicalId);
+                    
+                    CurrencyChangeEvent event = new CurrencyChangeEvent(player, canonicalId, currentBalance, newBalance, CurrencyChangeEvent.ChangeType.REMOVE);
+                    Bukkit.getPluginManager().callEvent(event);
+                    
+                    if (event.isCancelled()) {
+                        balanceCache.get(playerId).put(canonicalId, currentBalance);
+                        resultFuture.complete(false);
+                    } else {
+                        if (!silent && currency != null && currency.isNotifyTake()) {
+                            player.sendMessage(ColorUtil.colorize(
+                                plugin.getMessageManager().getMessage("transaction.lose")
+                                    .replace("{amount}", plugin.getConfigManager().formatAmount(amount, currency))
+                                    .replace("{currency}", currency.getDisplayName())
+                            ));
+                        }
+                        resultFuture.complete(true);
+                    }
+                });
+                return resultFuture;
             }
-            return true;
         });
     }
 

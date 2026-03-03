@@ -20,7 +20,6 @@ public class CurrencyChangeEvent extends Event implements Cancellable {
     private boolean cancelled;
     
     public CurrencyChangeEvent(Player player, String currencyId, double oldBalance, double newBalance, ChangeType changeType) {
-        super(true);
         this.player = player;
         this.currencyId = currencyId;
         this.oldBalance = oldBalance;
