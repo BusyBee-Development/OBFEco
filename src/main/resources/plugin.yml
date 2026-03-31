@@ -22,7 +22,7 @@ permissions:
     default: true
   obfeco.balance:
     description: Check own balance
-    default: true
+    default: false
   obfeco.balance.others:
     description: Check other players balance
     default: op
