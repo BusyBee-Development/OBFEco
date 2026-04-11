@@ -33,6 +33,7 @@ placeholder:
 
 logging:
   enabled: true
+  console-notifications: false
   admin-transactions: true
   user-transactions: true
 

@@ -38,6 +38,7 @@ public class ConfigManager {
     private int topCacheMinutes;
 
     private boolean loggingEnabled;
+    private boolean consoleNotifications;
     private boolean adminTransactions;
     private boolean userTransactions;
 
@@ -83,6 +84,7 @@ public class ConfigManager {
         this.topCacheMinutes = config.getInt("placeholder.top-cache-minutes", 5);
 
         this.loggingEnabled = config.getBoolean("logging.enabled", true);
+        this.consoleNotifications = config.getBoolean("logging.console-notifications", true);
         this.adminTransactions = config.getBoolean("logging.admin-transactions", true);
         this.userTransactions = config.getBoolean("logging.user-transactions", true);
 
@@ -105,6 +107,10 @@ public class ConfigManager {
         plugin.reloadConfig();
         this.config = plugin.getConfig();
         load();
+    }
+
+    public boolean isConsoleNotifications() {
+        return consoleNotifications;
     }
 
     public String formatAmount(double amount, Currency currency) {

@@ -45,7 +45,7 @@ public class DatabaseManager {
 
         if (storageType.equals("YAML")) {
             this.yamlStorage = new YamlStorageManager(plugin);
-            plugin.getLogger().info("Using YAML storage for player balances");
+            plugin.info("Using YAML storage for player balances");
             return true;
         }
 
@@ -77,8 +77,7 @@ public class DatabaseManager {
             this.dataSource = new HikariDataSource(config);
 
             createPlayersTable();
-
-            plugin.getLogger().info("Database connection established (" + storageType + ")");
+            plugin.info("Database connection established (" + storageType + ")");
             return true;
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to initialize database: " + e.getMessage());
@@ -349,7 +348,7 @@ public class DatabaseManager {
 
             stmt.executeBatch();
             conn.commit();
-            plugin.getLogger().info("[DB] Wrote " + balances.size() + " balances for currency: " + currencyId);
+            plugin.info("[DB] Wrote " + balances.size() + " balances for currency: " + currencyId);
         } catch (SQLException e) {
             plugin.getLogger().severe("Failed to batch save balances for currency " + currencyId + ": " + e.getMessage());
             e.printStackTrace();

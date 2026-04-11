@@ -132,14 +132,14 @@ public class MigrationManager {
     }
 
     private void migrateCoinsEngine(String targetCurrency, MigrationCallback callback) {
-        plugin.getLogger().info("=== CoinEngine Migration Started ===");
+        plugin.info("=== CoinEngine Migration Started ===");
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 String migrationType = plugin.getConfigManager().getMigrationType();
                 String configTable = plugin.getConfigManager().getMigrationTable();
-                plugin.getLogger().info("Migration type: " + migrationType);
-                plugin.getLogger().info("Configured table: " + configTable);
+                plugin.info("Migration type: " + migrationType);
+                plugin.info("Configured table: " + configTable);
 
                 // Build connection URL
                 final String url;
@@ -150,9 +150,9 @@ public class MigrationManager {
                         dbFile = new java.io.File(plugin.getDataFolder().getParentFile().getParentFile(), file);
                     }
                     final String dbPath = dbFile.getAbsolutePath();
-                    plugin.getLogger().info("Database file path: " + dbPath);
-                    plugin.getLogger().info("File exists: " + dbFile.exists());
-                    plugin.getLogger().info("File size: " + (dbFile.exists() ? dbFile.length() + " bytes" : "N/A"));
+                    plugin.info("Database file path: " + dbPath);
+                    plugin.info("File exists: " + dbFile.exists());
+                    plugin.info("File size: " + (dbFile.exists() ? dbFile.length() + " bytes" : "N/A"));
 
                     if (!dbFile.exists()) {
                         String errorMsg = "SQLite database file not found: " + dbPath;
@@ -166,12 +166,12 @@ public class MigrationManager {
                     int port = plugin.getConfig().getInt("migration.coinsengine.port", 3306);
                     String database = plugin.getConfig().getString("migration.coinsengine.database", "minecraft");
                     url = "jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false&allowPublicKeyRetrieval=true";
-                    plugin.getLogger().info("MySQL connection: " + host + ":" + port + "/" + database);
+                    plugin.info("MySQL connection: " + host + ":" + port + "/" + database);
                 }
 
                 // Get currency mappings
                 Map<String, String> currencyMappings = plugin.getConfigManager().getMigrationMappings();
-                plugin.getLogger().info("Currency mappings: " + currencyMappings);
+                plugin.info("Currency mappings: " + currencyMappings);
 
                 if (currencyMappings.isEmpty()) {
                     String errorMsg = "No currency mappings configured. Check migration.coinsengine.mappings in config.yml";
@@ -181,7 +181,7 @@ public class MigrationManager {
                 }
 
                 // Connect to database
-                plugin.getLogger().info("Establishing database connection...");
+                plugin.info("Establishing database connection...");
                 Connection conn;
                 if (migrationType.equals("sqlite")) {
                     conn = DriverManager.getConnection(url);
@@ -190,21 +190,21 @@ public class MigrationManager {
                     String pass = plugin.getConfig().getString("migration.coinsengine.password", "password");
                     conn = DriverManager.getConnection(url, user, pass);
                 }
-                plugin.getLogger().info("Database connection established!");
+                plugin.info("Database connection established!");
 
                 int totalMigrated = 0;
                 int currenciesProcessed = 0;
                 StringBuilder resultMessage = new StringBuilder();
 
                 try (conn) {
-                    plugin.getLogger().info("Detecting database tables...");
+                    plugin.info("Detecting database tables...");
                     String actualTable = configTable;
                     try (ResultSet tables = conn.getMetaData().getTables(null, null, "%", new String[]{"TABLE"})) {
-                        plugin.getLogger().info("Available tables:");
+                        plugin.info("Available tables:");
                         boolean foundConfigTable = false;
                         while (tables.next()) {
                             String tableName = tables.getString("TABLE_NAME");
-                            plugin.getLogger().info("  - " + tableName);
+                            plugin.info("  - " + tableName);
                             if (tableName.equalsIgnoreCase(configTable)) {
                                 foundConfigTable = true;
                             }
@@ -218,10 +218,10 @@ public class MigrationManager {
                         }
                     }
 
-                    plugin.getLogger().info("Using table: " + actualTable);
+                    plugin.info("Using table: " + actualTable);
 
                     // Detect table structure
-                    plugin.getLogger().info("Analyzing table structure...");
+                    plugin.info("Analyzing table structure...");
                     ResultSetMetaData meta;
                     String uuidCol = "uuid";
                     Map<String, String> balanceColumns = new HashMap<>();
@@ -236,13 +236,13 @@ public class MigrationManager {
                          ResultSet checkRs = checkStmt.executeQuery()) {
                         meta = checkRs.getMetaData();
                         int colCount = meta.getColumnCount();
-                        plugin.getLogger().info("Table has " + colCount + " columns:");
+                        plugin.info("Table has " + colCount + " columns:");
 
                         // Log all columns
                         for (int i = 1; i <= colCount; i++) {
                             String colName = meta.getColumnName(i);
                             String colType = meta.getColumnTypeName(i);
-                            plugin.getLogger().info("  " + i + ". " + colName + " (" + colType + ")");
+                            plugin.info("  " + i + ". " + colName + " (" + colType + ")");
 
                             String colNameLower = colName.toLowerCase();
 
@@ -254,12 +254,12 @@ public class MigrationManager {
                             if (colNameLower.startsWith("balance_")) {
                                 String currencyName = colNameLower.substring(8);
                                 balanceColumns.put(currencyName, colName);
-                                plugin.getLogger().info("     → Detected currency (balance_ prefix): " + currencyName);
+                                plugin.info("     → Detected currency (balance_ prefix): " + currencyName);
                             }
 
                             else if (currencyMappings.containsKey(colNameLower)) {
                                 balanceColumns.put(colNameLower, colName);
-                                plugin.getLogger().info("     → Detected currency (mapped): " + colNameLower);
+                                plugin.info("     → Detected currency (mapped): " + colNameLower);
                             }
 
                             else if (!systemColumns.contains(colNameLower) &&
@@ -272,8 +272,8 @@ public class MigrationManager {
                             }
                         }
 
-                        plugin.getLogger().info("UUID column: " + uuidCol);
-                        plugin.getLogger().info("Balance columns found: " + balanceColumns.keySet());
+                        plugin.info("UUID column: " + uuidCol);
+                        plugin.info("Balance columns found: " + balanceColumns.keySet());
                     } catch (Exception e) {
                         String errorMsg = "Failed to analyze table structure: " + e.getMessage();
                         plugin.getLogger().severe(errorMsg);
@@ -290,11 +290,11 @@ public class MigrationManager {
                     }
 
                     // Migrate each currency
-                    plugin.getLogger().info("Starting currency migration...");
+                    plugin.info("Starting currency migration...");
                     for (Map.Entry<String, String> mapping : currencyMappings.entrySet()) {
                         String sourceCurrency = mapping.getKey();
                         String obfecoCurrency = mapping.getValue();
-                        plugin.getLogger().info("Processing: " + sourceCurrency + " -> " + obfecoCurrency);
+                        plugin.info("Processing: " + sourceCurrency + " -> " + obfecoCurrency);
 
                         String balanceColumn = balanceColumns.get(sourceCurrency);
                         if (balanceColumn == null) {
@@ -305,7 +305,7 @@ public class MigrationManager {
 
                         Map<UUID, Double> data = new HashMap<>();
                         String query = "SELECT " + uuidCol + ", " + balanceColumn + " FROM " + actualTable;
-                        plugin.getLogger().info("Query: " + query);
+                        plugin.info("Query: " + query);
 
                         try (PreparedStatement stmt = conn.prepareStatement(query);
                              ResultSet rs = stmt.executeQuery()) {
@@ -325,28 +325,28 @@ public class MigrationManager {
                                     plugin.getLogger().warning("Skipping invalid row: " + e.getMessage());
                                 }
                             }
-                            plugin.getLogger().info("Scanned " + rowCount + " rows, found " + data.size() + " valid balances");
+                            plugin.info("Scanned " + rowCount + " rows, found " + data.size() + " valid balances");
                         }
 
                         if (!data.isEmpty()) {
-                            plugin.getLogger().info("Creating currency table: " + obfecoCurrency);
+                            plugin.info("Creating currency table: " + obfecoCurrency);
                             plugin.getDatabaseManager().createCurrencyTable(obfecoCurrency);
-                            plugin.getLogger().info("Batch writing " + data.size() + " balances...");
+                            plugin.info("Batch writing " + data.size() + " balances...");
                             plugin.getDatabaseManager().batchSetBalances(obfecoCurrency, data);
                             totalMigrated += data.size();
                             currenciesProcessed++;
-                            plugin.getLogger().info("✓ Successfully migrated " + data.size() + " balances for " + sourceCurrency);
+                            plugin.info("✓ Successfully migrated " + data.size() + " balances for " + sourceCurrency);
                             resultMessage.append("\n- ").append(sourceCurrency).append(" -> ").append(obfecoCurrency).append(": ").append(data.size()).append(" players");
                         } else {
-                            plugin.getLogger().info("No data found for currency: " + sourceCurrency);
+                            plugin.info("No data found for currency: " + sourceCurrency);
                             resultMessage.append("\n- ").append(sourceCurrency).append(": 0 players");
                         }
                     }
                 }
 
-                plugin.getLogger().info("=== Migration Complete ===");
-                plugin.getLogger().info("Currencies processed: " + currenciesProcessed);
-                plugin.getLogger().info("Total balances migrated: " + totalMigrated);
+                plugin.info("=== Migration Complete ===");
+                plugin.info("Currencies processed: " + currenciesProcessed);
+                plugin.info("Total balances migrated: " + totalMigrated);
 
                 if (currenciesProcessed > 0) {
                     String finalMessage = "Migrated " + currenciesProcessed + " currencies (" + totalMigrated + " total balances)" + resultMessage.toString();

@@ -67,8 +67,8 @@ public class Obfeco extends JavaPlugin {
         new Metrics(this, 29485);
 
         long loadTime = System.currentTimeMillis() - startTime;
-        getLogger().info("Obfeco v" + getDescription().getVersion() + " enabled in " + loadTime + "ms");
-        getLogger().info("Loaded " + currencyManager.getCurrencies().size() + " currencies");
+        info("Obfeco v" + getDescription().getVersion() + " enabled in " + loadTime + "ms");
+        info("Loaded " + currencyManager.getCurrencies().size() + " currencies");
     }
     
     @Override
@@ -85,7 +85,7 @@ public class Obfeco extends JavaPlugin {
             this.vaultHook.unhook();
         }
         
-        getLogger().info("Obfeco disabled");
+        info("Obfeco disabled");
     }
     
     private void registerCommands() {
@@ -103,13 +103,19 @@ public class Obfeco extends JavaPlugin {
         if (Bukkit.getPluginManager().getPlugin("VaultUnlocked") != null && configManager.isVaultEnabled()) {
             this.vaultHook = new VaultHook(this);
             this.vaultHook.hook();
-            getLogger().info("Hooked into VaultUnlocked");
+            info("Hooked into VaultUnlocked");
         }
         
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null && configManager.isPlaceholderEnabled()) {
             this.placeholderHook = new PlaceholderHook(this);
             this.placeholderHook.register();
-            getLogger().info("Hooked into PlaceholderAPI");
+            info("Hooked into PlaceholderAPI");
+        }
+    }
+    
+    public void info(String message) {
+        if (configManager != null && configManager.isConsoleNotifications()) {
+            getLogger().info(message);
         }
     }
     

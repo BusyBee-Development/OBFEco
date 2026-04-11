@@ -83,7 +83,7 @@ public class CoinsEngineMigration {
                     map.put(c.getId(), new CECurrencyMeta(
                         c.getId(), c.getName(), c.getSymbol(), c.getStartValue(), c.isDecimal()));
                 }
-                plugin.getLogger().info("[Migration] Loaded " + map.size() + " currencies via CoinsEngineAPI");
+                plugin.info("[Migration] Loaded " + map.size() + " currencies via CoinsEngineAPI");
                 return map;
             }
         } catch (NoClassDefFoundError | NoSuchMethodError | Exception ignored) {}
@@ -107,7 +107,7 @@ public class CoinsEngineMigration {
                 }
             }
         }
-        plugin.getLogger().info("[Migration] Loaded " + map.size() + " currencies from YML files");
+        plugin.info("[Migration] Loaded " + map.size() + " currencies from YML files");
         return map;
     }
 
@@ -154,10 +154,10 @@ public class CoinsEngineMigration {
 
     private boolean hasJsonDataColumn(Connection conn, String tableName) throws SQLException {
         List<String> columns = getTableColumns(conn, tableName);
-        plugin.getLogger().info("[Migration] Columns in " + tableName + ": " + columns);
+        plugin.info("[Migration] Columns in " + tableName + ": " + columns);
         for (String col : columns) {
             if (col.equalsIgnoreCase(DATA_COL)) {
-                plugin.getLogger().info("[Migration] Found JSON data column: " + col);
+                plugin.info("[Migration] Found JSON data column: " + col);
                 return true;
             }
         }
@@ -174,9 +174,9 @@ public class CoinsEngineMigration {
         boolean hasJson = hasJsonDataColumn(conn, actualTable);
 
         if (debug) {
-            plugin.getLogger().info("[Migration-Debug] Using table: " + actualTable);
-            plugin.getLogger().info("[Migration-Debug] Using UUID column: " + uuidCol);
-            plugin.getLogger().info("[Migration-Debug] JSON column detected: " + hasJson);
+            plugin.info("[Migration-Debug] Using table: " + actualTable);
+            plugin.info("[Migration-Debug] Using UUID column: " + uuidCol);
+            plugin.info("[Migration-Debug] JSON column detected: " + hasJson);
         }
 
         Map<String, Map<UUID, Double>> result = new HashMap<>();
@@ -199,8 +199,8 @@ public class CoinsEngineMigration {
         }
 
         if (debug) {
-            plugin.getLogger().info("[Migration-Debug] Potential flat columns: " + flatCurrencyCols);
-            plugin.getLogger().info("[Migration-Debug] Name column detected: " + (nameCol != null ? nameCol : "none"));
+            plugin.info("[Migration-Debug] Potential flat columns: " + flatCurrencyCols);
+            plugin.info("[Migration-Debug] Name column detected: " + (nameCol != null ? nameCol : "none"));
         }
 
         Map<String, String> mappings = plugin.getConfigManager().getMigrationMappings();
@@ -263,17 +263,17 @@ public class CoinsEngineMigration {
                 if (rowHasData) parsedRows++;
 
                 if (debug && totalRows <= 5) {
-                    plugin.getLogger().info("[Migration-Debug] Sample Row " + totalRows + " (UUID: " + uuidStr + ")");
+                    plugin.info("[Migration-Debug] Sample Row " + totalRows + " (UUID: " + uuidStr + ")");
                     for (Map.Entry<String, Map<UUID, Double>> entry : result.entrySet()) {
                         if (entry.getValue().containsKey(uuid)) {
-                            plugin.getLogger().info("  - " + entry.getKey() + ": " + entry.getValue().get(uuid));
+                            plugin.info("  - " + entry.getKey() + ": " + entry.getValue().get(uuid));
                         }
                     }
                 }
             }
         }
 
-        plugin.getLogger().info("[Migration] Extracted data from " + parsedRows + " out of " + totalRows + " rows");
+        plugin.info("[Migration] Extracted data from " + parsedRows + " out of " + totalRows + " rows");
         return new ExtractionResult(result, names);
     }
 
@@ -324,7 +324,7 @@ public class CoinsEngineMigration {
             }
         }
 
-        plugin.getLogger().info("[Migration] Total rows: " + totalRows + " | Parsed: " + parsedRows + " | Errors: " + errorRows);
+        plugin.info("[Migration] Total rows: " + totalRows + " | Parsed: " + parsedRows + " | Errors: " + errorRows);
         return result;
     }
 
@@ -349,7 +349,7 @@ public class CoinsEngineMigration {
             return result;
         }
 
-        plugin.getLogger().info("[Migration] Flat-column mode: detected " + currencyColumns.size() + " currency columns: " + currencyColumns);
+        plugin.info("[Migration] Flat-column mode: detected " + currencyColumns.size() + " currency columns: " + currencyColumns);
 
         StringBuilder sb = new StringBuilder("SELECT ").append(UUID_COL);
         for (String col : currencyColumns) {
@@ -385,7 +385,7 @@ public class CoinsEngineMigration {
             }
         }
 
-        plugin.getLogger().info("[Migration] Total rows: " + totalRows + " | Parsed: " + parsedRows);
+        plugin.info("[Migration] Total rows: " + totalRows + " | Parsed: " + parsedRows);
         return result;
     }
 
@@ -479,17 +479,17 @@ public class CoinsEngineMigration {
             return;
         }
 
-        plugin.getLogger().info("[Migration] === CoinsEngine Migration Starting ===");
-        if (debug) plugin.getLogger().info("[Migration] DEBUG MODE ENABLED");
+        plugin.info("[Migration] === CoinsEngine Migration Starting ===");
+        if (debug) plugin.info("[Migration] DEBUG MODE ENABLED");
 
         CompletableFuture.runAsync(() -> {
             Connection conn = null;
             try {
                 CEConfig cfg = readConfig();
-                plugin.getLogger().info("[Migration] DB type: " + cfg.type);
+                plugin.info("[Migration] DB type: " + cfg.type);
 
                 conn = openConnection(cfg);
-                plugin.getLogger().info("[Migration] Connected to CoinsEngine database");
+                plugin.info("[Migration] Connected to CoinsEngine database");
 
                 Map<String, CECurrencyMeta> currencyMeta = loadCurrencyMeta();
                 Set<String> knownIds = currencyMeta.isEmpty() ? null : currencyMeta.keySet();
@@ -506,10 +506,10 @@ public class CoinsEngineMigration {
                     return;
                 }
 
-                plugin.getLogger().info("[Migration] Found " + allBalances.size() + " currencies with balance data");
+                plugin.info("[Migration] Found " + allBalances.size() + " currencies with balance data");
                 
                 if (!playerNames.isEmpty()) {
-                    plugin.getLogger().info("[Migration] Extracting " + playerNames.size() + " player names...");
+                    plugin.info("[Migration] Extracting " + playerNames.size() + " player names...");
                     plugin.getDatabaseManager().batchUpdatePlayerNames(playerNames);
                 }
 
@@ -524,7 +524,7 @@ public class CoinsEngineMigration {
                     CECurrencyMeta meta = currencyMeta.getOrDefault(cid,
                         new CECurrencyMeta(cid, cid, "", 0.0, true));
 
-                    plugin.getLogger().info("[Migration] Processing: " + cid + " (" + balances.size() + " players)");
+                    plugin.info("[Migration] Processing: " + cid + " (" + balances.size() + " players)");
 
                     if (plugin.getCurrencyManager().getCurrency(cid) == null) {
                         final String finalCid = cid;
@@ -541,7 +541,7 @@ public class CoinsEngineMigration {
                             true
                         );
                         plugin.getCurrencyManager().addCurrency(newCurrency);
-                        plugin.getLogger().info("[Migration] Registered new currency in memory: " + finalCid);
+                        plugin.info("[Migration] Registered new currency in memory: " + finalCid);
                     }
 
                     boolean tableCreated = plugin.getDatabaseManager().createCurrencyTable(cid);
@@ -550,15 +550,15 @@ public class CoinsEngineMigration {
                         continue;
                     }
 
-                    plugin.getLogger().info("[Migration] Created new currency: " + cid);
+                    plugin.info("[Migration] Created new currency: " + cid);
                     plugin.getDatabaseManager().batchSetBalances(cid, balances);
                     totalPlayers = Math.max(totalPlayers, balances.size());
                     totalCurrencies++;
                     details.append("\n  ").append(cid).append(": ").append(balances.size()).append(" players");
                 }
 
-                plugin.getLogger().info("[Migration] === Migration Complete ===");
-                plugin.getLogger().info("[Migration] Currencies: " + totalCurrencies + " | Max players: " + totalPlayers);
+                plugin.info("[Migration] === Migration Complete ===");
+                plugin.info("[Migration] Currencies: " + totalCurrencies + " | Max players: " + totalPlayers);
 
                 final int finalPlayers = totalPlayers;
                 final int finalCurrencies = totalCurrencies;

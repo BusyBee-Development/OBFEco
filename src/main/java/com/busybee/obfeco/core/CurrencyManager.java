@@ -65,7 +65,7 @@ public class CurrencyManager {
             if (needsSave) {
                 try {
                     config.save(file);
-                    plugin.getLogger().info("Updated currency file " + id + ".yml with missing notify settings");
+                    plugin.info("Updated currency file " + id + ".yml with missing notify settings");
                 } catch (IOException e) {
                     plugin.getLogger().warning("Failed to update currency file " + id + ".yml: " + e.getMessage());
                 }
