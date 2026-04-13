@@ -44,6 +44,10 @@ public class Obfeco extends JavaPlugin {
         this.configManager = new ConfigManager(this);
         this.messageManager = new MessageManager(this);
         this.logManager = new LogManager(this);
+
+        if (!configManager.isLoggingEnabled() || !configManager.isConsoleEnabled()) {
+            silenceLibraries();
+        }
         
         this.databaseManager = new DatabaseManager(this);
         if (!this.databaseManager.initialize()) {
@@ -114,13 +118,28 @@ public class Obfeco extends JavaPlugin {
     }
     
     public void info(String message) {
-        if (configManager != null && configManager.isConsoleNotifications()) {
+        if (configManager != null && configManager.isLoggingEnabled() && configManager.isConsoleEnabled()) {
             getLogger().info(message);
         }
+    }
+
+    private void silenceLibraries() {
+        try {
+            // Silence HikariCP
+            java.util.logging.Logger.getLogger("com.zaxxer.hikari").setLevel(java.util.logging.Level.WARNING);
+            java.util.logging.Logger.getLogger("com.busybee.obfeco.libs.hikari").setLevel(java.util.logging.Level.WARNING);
+            
+            // Silence bStats
+            java.util.logging.Logger.getLogger("org.bstats").setLevel(java.util.logging.Level.WARNING);
+            java.util.logging.Logger.getLogger("com.busybee.obfeco.libs.bstats").setLevel(java.util.logging.Level.WARNING);
+        } catch (Exception ignored) {}
     }
     
     public void reload() {
         this.configManager.reload();
+        if (!configManager.isLoggingEnabled() || !configManager.isConsoleEnabled()) {
+            silenceLibraries();
+        }
         this.messageManager.reload();
         this.currencyManager.loadCurrencies();
     }

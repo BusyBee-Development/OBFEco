@@ -33,7 +33,8 @@ placeholder:
 
 logging:
   enabled: true
-  console-notifications: false
+  console-enabled: false
+  file-enabled: true
   admin-transactions: true
   user-transactions: true
 

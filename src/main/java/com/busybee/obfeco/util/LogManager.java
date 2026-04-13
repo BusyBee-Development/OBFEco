@@ -18,7 +18,7 @@ public class LogManager {
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     public void logTransaction(String actor, String target, String currency, String action, double amount) {
-        if (!plugin.getConfigManager().isLoggingEnabled()) return;
+        if (!plugin.getConfigManager().isLoggingEnabled() || !plugin.getConfigManager().isFileEnabled()) return;
 
         File logsDir = new File(plugin.getDataFolder(), "logs");
         if (!logsDir.exists()) {
