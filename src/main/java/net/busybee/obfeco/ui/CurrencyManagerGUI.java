@@ -6,6 +6,7 @@ import net.busybee.obfeco.core.Currency;
 import net.busybee.obfeco.util.ColorUtil;
 import com.cryptomorin.xseries.XMaterial;
 import lombok.Getter;
+import net.busybee.obfeco.util.FoliaUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -142,7 +143,7 @@ public final class CurrencyManagerGUI extends FastInv {
                                                 .replace("{currency}", displayName)
                         ));
 
-                        Bukkit.getScheduler().runTask(plugin, () ->
+                        FoliaUtil.run(plugin, () ->
                                 new CurrencyManagerGUI(plugin).open(player)
                         );
                     }

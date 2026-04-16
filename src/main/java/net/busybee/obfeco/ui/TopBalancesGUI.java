@@ -7,6 +7,7 @@ import net.busybee.obfeco.database.DatabaseManager;
 import net.busybee.obfeco.util.ColorUtil;
 import com.cryptomorin.xseries.XMaterial;
 import lombok.Getter;
+import net.busybee.obfeco.util.FoliaUtil;
 import net.md_5.bungee.api.chat.ClickEvent;
 import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
@@ -72,7 +73,7 @@ public final class TopBalancesGUI extends FastInv {
 
         plugin.getDatabaseManager()
                 .getTopBalancesExtendedAsync(currency.getId(), fetchLimit)
-                .thenAccept(entries -> Bukkit.getScheduler().runTask(plugin, () -> {
+                .thenAccept(entries -> FoliaUtil.run(plugin, () -> {
                     leaderboardEntries = entries;
                     loading = false;
 

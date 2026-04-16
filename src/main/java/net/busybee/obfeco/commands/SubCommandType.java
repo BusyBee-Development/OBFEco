@@ -9,6 +9,7 @@ import net.busybee.obfeco.ui.TopBalancesGUI;
 import net.busybee.obfeco.util.ColorUtil;
 import lombok.Getter;
 import net.busybee.obfeco.migration.CurrencyScanResult;
+import net.busybee.obfeco.util.FoliaUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
@@ -175,7 +176,7 @@ public enum SubCommandType {
             double finalAmount = amount;
             plugin.getCurrencyManager().getBalance(player.getUniqueId(), currencyId).thenAccept(balance -> {
                 if (balance < finalAmount) {
-                    Bukkit.getScheduler().runTask(plugin, () ->
+                    FoliaUtil.run(plugin, () ->
                         player.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
                             plugin.getMessageManager().getMessage("insufficient-funds").replace("{currency}", currency.getDisplayName()))));
                     return;
@@ -185,7 +186,7 @@ public enum SubCommandType {
                     if (removed) {
                         plugin.getCurrencyManager().addBalance(target.getUniqueId(), currencyId, finalAmount, true).thenAccept(added -> {
                             if (added) {
-                                Bukkit.getScheduler().runTask(plugin, () -> {
+                                FoliaUtil.run(plugin, () -> {
                                     player.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
                                         plugin.getMessageManager().getMessage("transaction.pay-sent")
                                             .replace("{player}", target.getName())
@@ -257,7 +258,7 @@ public enum SubCommandType {
                 return;
             }
 
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+           FoliaUtil.runAsync(plugin, () -> {
                 int limit = 10;
                 int offset = (finalPage - 1) * limit;
                 List<DatabaseManager.LeaderboardEntry> topBalances = plugin.getDatabaseManager().getTopBalancesExtended(currencyId, limit + offset);
@@ -281,7 +282,7 @@ public enum SubCommandType {
                         .replace("{amount}", plugin.getConfigManager().formatAmount(entry.getBalance(), currency))));
                 }
 
-                Bukkit.getScheduler().runTask(plugin, () -> {
+               FoliaUtil.run(plugin, () -> {
                     sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getMessage("top.header")
                         .replace("{currency}", currency.getDisplayName())));
 
@@ -341,7 +342,7 @@ public enum SubCommandType {
 
             final String resolvedTargetName = target.getName() != null ? target.getName() : targetName;
             plugin.getCurrencyManager().addBalance(target.getUniqueId(), currencyId, amount, silent).thenAccept(success -> {
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                FoliaUtil.run(plugin, () -> {
                     if (success) {
                         sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
                             plugin.getMessageManager().getMessage("transaction.give")
@@ -418,7 +419,7 @@ public enum SubCommandType {
 
             final String resolvedTargetName = target.getName() != null ? target.getName() : targetName;
             plugin.getCurrencyManager().removeBalance(target.getUniqueId(), currencyId, amount, silent).thenAccept(success -> {
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                FoliaUtil.run(plugin, () -> {
                     if (success) {
                         sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
                             plugin.getMessageManager().getMessage("transaction.take")
@@ -496,7 +497,7 @@ public enum SubCommandType {
 
             final String resolvedTargetName = target.getName() != null ? target.getName() : targetName;
             plugin.getCurrencyManager().setBalance(target.getUniqueId(), currencyId, amount).thenAccept(success -> {
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                FoliaUtil.run(plugin, () -> {
                     if (success) {
                         sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
                             plugin.getMessageManager().getMessage("transaction.set")
@@ -690,7 +691,7 @@ public enum SubCommandType {
             sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <yellow>Scanning CoinsEngine currencies..."));
 
             importer.scanCurrenciesDetailed(debug).thenAccept(results -> {
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                FoliaUtil.run(plugin, () -> {
                     if (results.isEmpty()) {
                         sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " <yellow>No currencies found in CoinsEngine."));
                     } else {
