@@ -13,6 +13,7 @@ import net.busybee.obfeco.util.FoliaUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -343,6 +344,9 @@ public enum SubCommandType {
             final String resolvedTargetName = target.getName() != null ? target.getName() : targetName;
             plugin.getCurrencyManager().addBalance(target.getUniqueId(), currencyId, amount, silent).thenAccept(success -> {
                 FoliaUtil.run(plugin, () -> {
+                    if(sender instanceof ConsoleCommandSender && !plugin.getConfigManager().isConsoleEnabled()){
+                        return;
+                    }
                     if (success) {
                         sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
                             plugin.getMessageManager().getMessage("transaction.give")
@@ -420,6 +424,9 @@ public enum SubCommandType {
             final String resolvedTargetName = target.getName() != null ? target.getName() : targetName;
             plugin.getCurrencyManager().removeBalance(target.getUniqueId(), currencyId, amount, silent).thenAccept(success -> {
                 FoliaUtil.run(plugin, () -> {
+                    if(sender instanceof ConsoleCommandSender && !plugin.getConfigManager().isConsoleEnabled()){
+                        return;
+                    }
                     if (success) {
                         sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
                             plugin.getMessageManager().getMessage("transaction.take")
@@ -498,6 +505,9 @@ public enum SubCommandType {
             final String resolvedTargetName = target.getName() != null ? target.getName() : targetName;
             plugin.getCurrencyManager().setBalance(target.getUniqueId(), currencyId, amount).thenAccept(success -> {
                 FoliaUtil.run(plugin, () -> {
+                    if(sender instanceof ConsoleCommandSender && !plugin.getConfigManager().isConsoleEnabled()){
+                        return;
+                    }
                     if (success) {
                         sender.sendMessage(ColorUtil.colorize(plugin.getMessageManager().getPrefix() + " " +
                             plugin.getMessageManager().getMessage("transaction.set")
