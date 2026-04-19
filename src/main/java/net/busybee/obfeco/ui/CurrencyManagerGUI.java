@@ -19,13 +19,19 @@ import java.util.List;
 public final class CurrencyManagerGUI extends FastInv {
 
     private final Obfeco plugin;
+    private final int page;
 
     public CurrencyManagerGUI(Obfeco plugin) {
+        this(plugin, 1);
+    }
+
+    public CurrencyManagerGUI(Obfeco plugin, int page) {
         super(54, ColorUtil.colorizeToLegacy(
                 plugin.getMessageManager().getMessage("gui.currency-manager.title")
         ));
 
         this.plugin = plugin;
+        this.page = page;
     }
 
     @Override
@@ -38,9 +44,16 @@ public final class CurrencyManagerGUI extends FastInv {
         clearItems();
 
         List<Currency> currencies = new ArrayList<>(plugin.getCurrencyManager().getCurrencies());
+        int pageSize = 45;
+        int totalPages = (int) Math.ceil((double) currencies.size() / pageSize);
+        if (totalPages == 0) totalPages = 1;
 
-        for (int slot = 0; slot < Math.min(currencies.size(), 45); slot++) {
-            Currency currency = currencies.get(slot);
+        int start = (page - 1) * pageSize;
+        int end = Math.min(start + pageSize, currencies.size());
+
+        for (int i = start; i < end; i++) {
+            Currency currency = currencies.get(i);
+            int slot = i - start;
 
             setItem(slot, createCurrencyItem(player, currency), event -> {
                 if (event.isLeftClick()) {
@@ -71,6 +84,29 @@ public final class CurrencyManagerGUI extends FastInv {
 
                 refresh(player);
             });
+        }
+
+        // Fill bottom row with navigation buttons
+        for (int i = 45; i < 54; i++) {
+            setItem(i, XMaterial.GRAY_STAINED_GLASS_PANE.parseItem(), event -> {});
+        }
+
+        if (page > 1) {
+            setItem(45, createSimpleItem(
+                    player,
+                    XMaterial.ARROW,
+                    "<yellow>Previous Page",
+                    List.of("<gray>Go to page " + (page - 1))
+            ), event -> new CurrencyManagerGUI(plugin, page - 1).open(player));
+        }
+
+        if (page < totalPages) {
+            setItem(53, createSimpleItem(
+                    player,
+                    XMaterial.ARROW,
+                    "<yellow>Next Page",
+                    List.of("<gray>Go to page " + (page + 1))
+            ), event -> new CurrencyManagerGUI(plugin, page + 1).open(player));
         }
 
         setItem(49, createSimpleItem(
@@ -144,13 +180,13 @@ public final class CurrencyManagerGUI extends FastInv {
                         ));
 
                         FoliaUtil.run(plugin, () ->
-                                new CurrencyManagerGUI(plugin).open(player)
+                                new CurrencyManagerGUI(plugin, page).open(player)
                         );
                     }
             );
         });
 
-        setItem(53, createSimpleItem(
+        setItem(51, createSimpleItem(
                 player,
                 XMaterial.BARRIER,
                 plugin.getMessageManager().getMessage("gui.currency-manager.close-button"),
